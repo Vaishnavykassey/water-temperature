@@ -1,22 +1,72 @@
 import streamlit as st
 import pandas as pd
-import os
+import time
+import random
+from datetime import datetime
 
-st.set_page_config(page_title="💧 Smart Water Temperature Monitoring", layout="centered")
-st.title("💧 Smart Water Temperature Monitoring System")
+# ✅ Initialize session state variables
+if 'monitoring' not in st.session_state:
+    st.session_state.monitoring = False
 
-file_path = "data_temperature_log.csv"
+if 'data' not in st.session_state:
+    st.session_state.data = []
 
-if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-    try:
-        df = pd.read_csv(file_path)
-        if df.empty or "Temperature" not in df.columns:
-            st.warning("CSV file is present but has no usable data.")
-        else:
-            st.line_chart(df["Temperature"])
-            st.success("Data loaded and chart displayed!")
-    except Exception as e:
-        st.error(f"Error reading CSV: {e}")
+# ✅ App Title and Logo
+st.set_page_config(page_title="Smart Water Temperature Monitoring", layout="wide")
+st.image("assest_logo.png", width=100)
+st.title("Smart Water Temperature Monitoring System 🌡️")
+
+# ✅ Start/Stop Monitoring Buttons
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    if st.button("Start Monitoring"):
+        st.session_state.monitoring = True
+        st.success("Monitoring started!")
+
+with col2:
+    if st.button("Stop Monitoring"):
+        st.session_state.monitoring = False
+        st.warning("Monitoring stopped!")
+
+# ✅ Simulate & Display Temperature Data
+placeholder = st.empty()
+
+def simulate_sensor_data():
+    # Random temperature between 20°C and 40°C
+    return round(random.uniform(20.0, 40.0), 2)
+
+# ✅ Continuous monitoring loop
+if st.session_state.monitoring:
+    for _ in range(20):  # You can increase or remove limit if needed
+        if not st.session_state.monitoring:
+            break
+
+        current_temp = simulate_sensor_data()
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        st.session_state.data.append({
+            "Timestamp": current_time,
+            "Temperature (°C)": current_temp
+        })
+
+        # Show updated data
+        df = pd.DataFrame(st.session_state.data)
+        placeholder.dataframe(df.tail(10), use_container_width=True)
+
+        # Save data to CSV
+        df.to_csv("data_temperature_log.csv", index=False)
+
+        time.sleep(2)
+
+# ✅ Show full data if monitoring is stopped
+if not st.session_state.monitoring and st.session_state.data:
+    st.subheader("Full Temperature Log")
+    st.dataframe(pd.DataFrame(st.session_state.data), use_container_width=True)
+
+    with open("data_temperature_log.csv", "rb") as f:
+        st.download_button("Download CSV", f, file_name="temperature_log.csv", mime="text/csv")
+
 else:
     st.warning("CSV file not found or is empty. Please upload or generate valid data.")
 
