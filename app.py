@@ -3,20 +3,76 @@ import pandas as pd
 import time
 import random
 from datetime import datetime
+from PIL import Image, UnidentifiedImageError
 
-# ✅ Always initialize session state variables FIRST
+# Initialize session state variables
 if "monitoring" not in st.session_state:
     st.session_state.monitoring = False
 
 if "data" not in st.session_state:
     st.session_state.data = []
 
-# ✅ Set page and title
-st.set_page_config(page_title="Smart Water Temperature Monitor", layout="wide")
-st.title("🌊 Smart Water Temperature Monitoring System")
-st.image("assest_logo.png", width=100)  # Check if file name is correct
+# Set page title and layout
+st.set_page_config(page_title="Smart Water Temperature Monitoring", layout="wide")
 
-# ✅ Start/Stop buttons
+# Safe image loading
+image_path = "assest_logo.png"  # Change this to your image filename
+try:
+    img = Image.open(image_path)
+    st.image(img, width=100)
+except FileNotFoundError:
+    st.warning(f"Image file '{image_path}' not found.")
+except UnidentifiedImageError:
+    st.warning(f"Cannot identify image file '{image_path}'. Please check the file.")
+
+st.title("🌊 Smart Water Temperature Monitoring System")
+
+# Start/Stop buttons
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("▶️ Start Monitoring"):
+        st.session_state.monitoring = True
+        st.success("Monitoring started!")
+
+with col2:
+    if st.button("⏹ Stop Monitoring"):
+        st.session_state.monitoring = False
+        st.warning("Monitoring stopped!")
+
+placeholder = st.empty()
+
+def simulate_sensor_data():
+    return round(random.uniform(20.0, 40.0), 2)
+
+# Monitoring loop
+if st.session_state.monitoring:
+    for _ in range(20):  # simulate 20 readings; adjust or remove this limit as needed
+        if not st.session_state.monitoring:
+            break
+
+        temp = simulate_sensor_data()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        st.session_state.data.append({
+            "Timestamp": now,
+            "Temperature (°C)": temp
+        })
+
+        df = pd.DataFrame(st.session_state.data)
+        placeholder.dataframe(df.tail(10), use_container_width=True)
+
+        df.to_csv("data_temperature_log.csv", index=False)
+        time.sleep(2)
+
+# Show full log and download option when not monitoring
+if not st.session_state.monitoring and st.session_state.data:
+    st.subheader("📊 Full Temperature Log")
+    df = pd.DataFrame(st.session_state.data)
+    st.dataframe(df, use_container_width=True)
+
+    with open("data_temperature_log.csv", "rb") as f:
+        st.download_button("⬇️ Download CSV", f, file_name="temperature_log.csv", mime="text/csv")
+
 col1, col2 = st.columns(2)
 with col1:
     if st.button("▶️ Start Monitoring"):
