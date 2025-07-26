@@ -5,18 +5,72 @@ import random
 from datetime import datetime
 from PIL import Image, UnidentifiedImageError
 
-# Initialize session state variables
+# Initialize session state variables if they don't exist
 if "monitoring" not in st.session_state:
     st.session_state.monitoring = False
 
 if "data" not in st.session_state:
     st.session_state.data = []
 
-# Set page title and layout
+# Set page config
 st.set_page_config(page_title="Smart Water Temperature Monitoring", layout="wide")
 
 # Safe image loading
-image_path = "assest_logo.png"  # Change this to your image filename
+image_path = "assest_logo.png"  # Change to your image filename
+try:
+    img = Image.open(image_path)
+    st.image(img, width=100)
+except FileNotFoundError:
+    st.warning(f"Image file '{image_path}' not found.")
+except UnidentifiedImageError:
+    st.warning(f"Cannot identify image file '{image_path}'. Please check the file.")
+
+st.title("🌊 Smart Water Temperature Monitoring System")
+
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("▶️ Start Monitoring"):
+        st.session_state.monitoring = True
+        st.success("Monitoring started!")
+
+with col2:
+    if st.button("⏹ Stop Monitoring"):
+        st.session_state.monitoring = False
+        st.warning("Monitoring stopped!")
+
+placeholder = st.empty()
+
+def simulate_sensor_data():
+    return round(random.uniform(20.0, 40.0), 2)
+
+# Use .get() to safely access session state
+if st.session_state.get("monitoring", False):
+    for _ in range(20):
+        if not st.session_state.get("monitoring", False):
+            break
+
+        temp = simulate_sensor_data()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        st.session_state.data.append({
+            "Timestamp": now,
+            "Temperature (°C)": temp
+        })
+
+        df = pd.DataFrame(st.session_state.data)
+        placeholder.dataframe(df.tail(10), use_container_width=True)
+
+        df.to_csv("data_temperature_log.csv", index=False)
+        time.sleep(2)
+
+if not st.session_state.get("monitoring", False) and st.session_state.data:
+    st.subheader("📊 Full Temperature Log")
+    df = pd.DataFrame(st.session_state.data)
+    st.dataframe(df, use_container_width=True)
+
+    with open("data_temperature_log.csv", "rb") as f:
+        st.download_button("⬇️ Download CSV", f, file_name="temperature_log.csv", mime="text/csv")
+ image filename
 try:
     img = Image.open(image_path)
     st.image(img, width=100)
