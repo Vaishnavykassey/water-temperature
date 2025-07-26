@@ -4,19 +4,65 @@ import time
 import random
 from datetime import datetime
 
-# ✅ ALWAYS initialize session state variables at the very top
-if 'monitoring' not in st.session_state:
+# ✅ Always initialize session state variables FIRST
+if "monitoring" not in st.session_state:
     st.session_state.monitoring = False
 
-if 'data' not in st.session_state:
+if "data" not in st.session_state:
     st.session_state.data = []
 
-# ✅ App Title and Logo
-st.set_page_config(page_title="Smart Water Temperature Monitoring", layout="wide")
-st.image("assest_logo.png", width=100)  # Make sure the file is spelled correctly!
-st.title("Smart Water Temperature Monitoring System 🌡️")
+# ✅ Set page and title
+st.set_page_config(page_title="Smart Water Temperature Monitor", layout="wide")
+st.title("🌊 Smart Water Temperature Monitoring System")
+st.image("assest_logo.png", width=100)  # Check if file name is correct
 
-# ✅ Start/Stop Monitoring Buttons
+# ✅ Start/Stop buttons
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("▶️ Start Monitoring"):
+        st.session_state.monitoring = True
+        st.success("Monitoring started!")
+
+with col2:
+    if st.button("⏹ Stop Monitoring"):
+        st.session_state.monitoring = False
+        st.warning("Monitoring stopped!")
+
+# ✅ Realtime monitoring display
+placeholder = st.empty()
+
+def simulate_sensor_data():
+    return round(random.uniform(20.0, 40.0), 2)
+
+# ✅ Start the loop if monitoring is active
+if st.session_state.monitoring:
+    for _ in range(20):  # simulate 20 readings
+        if not st.session_state.monitoring:
+            break
+
+        temp = simulate_sensor_data()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        st.session_state.data.append({
+            "Timestamp": now,
+            "Temperature (°C)": temp
+        })
+
+        df = pd.DataFrame(st.session_state.data)
+        placeholder.dataframe(df.tail(10), use_container_width=True)
+
+        df.to_csv("data_temperature_log.csv", index=False)
+        time.sleep(2)
+
+# ✅ Show full log after monitoring
+if not st.session_state.monitoring and st.session_state.data:
+    st.subheader("📊 Full Temperature Log")
+    df = pd.DataFrame(st.session_state.data)
+    st.dataframe(df, use_container_width=True)
+
+    with open("data_temperature_log.csv", "rb") as f:
+        st.download_button("⬇️ Download CSV", f, file_name="temperature_log.csv", mime="text/csv")
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
