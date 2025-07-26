@@ -1,22 +1,53 @@
 import streamlit as st
-import pandas as pd
 import time
 import random
-from datetime import datetime
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
-# Initialize session state variables if they don't exist
-if "monitoring" not in st.session_state:
-    st.session_state.monitoring = False
+st.set_page_config(page_title="Smart Water Temperature Monitoring System", layout="centered")
 
-if "data" not in st.session_state:
-    st.session_state.data = []
+st.title("🌊 Smart Water Temperature Monitoring System")
 
-# Set page config
-st.set_page_config(page_title="Smart Water Temperature Monitoring", layout="wide")
+# Load water image
+water_image = Image.open("images/water_live.jpg")  # Make sure you have this image in the images folder
 
-# Safe image loading
-image_path = "assest_logo.png"  # Change to your image filename
+# Placeholder for the temperature display
+temp_placeholder = st.empty()
+
+# Placeholder for the image with temperature overlay
+image_placeholder = st.empty()
+
+# Control buttons
+start = st.button("Start Monitoring")
+stop = st.button("Stop Monitoring")
+
+# Session state to keep track of running status and temperature
+if "running" not in st.session_state:
+    st.session_state.running = False
+
+if "temperature" not in st.session_state:
+    st.session_state.temperature = 25.0  # initial temperature
+
+if start:
+    st.session_state.running = True
+    st.success("Monitoring started...")
+
+if stop:
+    st.session_state.running = False
+    st.warning("Monitoring stopped.")
+
+def simulate_temperature():
+    # Simulate temperature changes slightly
+    new_temp = st.session_state.temperature + random.uniform(-0.3, 0.3)
+    # Keep temp between 20 and 35 for realism
+    new_temp = max(20, min(new_temp, 35))
+    st.session_state.temperature = round(new_temp, 2)
+
+def show_temperature_image(temp):
+    # Display water image with floating temperature overlay using markdown + HTML
+    html_code = f"""
+    <div style="position: relative; width: 100%; max-width: 600px;">
+        <img src="images/water_live.jpg" style="width: 100%; border-radius: 12px;"/>
+ur image filename
 try:
     img = Image.open(image_path)
     st.image(img, width=100)
