@@ -1,21 +1,24 @@
 import streamlit as st
 import pandas as pd
+import os
 
-st.set_page_config(page_title="Smart Water Temperature Monitoring", layout="centered")
-
+st.set_page_config(page_title="💧 Smart Water Temperature Monitoring", layout="centered")
 st.title("💧 Smart Water Temperature Monitoring System")
 
-# Load temperature data
-try:
-    df = pd.read_csv("data_temperature_log.csv")
-    st.line_chart(df["Temperature"])
-    st.success("Data loaded and chart displayed!")
-except Exception as e:
-    st.error(f"Error loading data: {e}")
+file_path = "data_temperature_log.csv"
 
-with col2:
-    if st.button("⏹ Stop Monitoring"):
-        st.session_state.monitoring = False
+if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+    try:
+        df = pd.read_csv(file_path)
+        if df.empty or "Temperature" not in df.columns:
+            st.warning("CSV file is present but has no usable data.")
+        else:
+            st.line_chart(df["Temperature"])
+            st.success("Data loaded and chart displayed!")
+    except Exception as e:
+        st.error(f"Error reading CSV: {e}")
+else:
+    st.warning("CSV file not found or is empty. Please upload or generate valid data.")
 
 # Monitoring logic
 if st.session_state.monitoring:
