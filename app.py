@@ -1,24 +1,18 @@
 import streamlit as st
 import pandas as pd
-import time
-from sensor_simulation import get_water_temperature
 
-st.set_page_config(page_title="Smart Water Temperature Monitor", layout="centered")
-st.title("🌊 Smart Water Temperature Monitoring System")
+st.set_page_config(page_title="Smart Water Temperature Monitoring", layout="centered")
 
-# Initialize session state variables
-if 'monitoring' not in st.session_state:
-    st.session_state.monitoring = False
+st.title("💧 Smart Water Temperature Monitoring System")
 
-if 'data' not in st.session_state:
-    # Store temperature history as list of dicts
-    st.session_state.data = []
+# Load temperature data
+try:
+    df = pd.read_csv("data_temperature_log.csv")
+    st.line_chart(df["Temperature"])
+    st.success("Data loaded and chart displayed!")
+except Exception as e:
+    st.error(f"Error loading data: {e}")
 
-# Start/Stop buttons
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("▶️ Start Monitoring"):
-        st.session_state.monitoring = True
 with col2:
     if st.button("⏹ Stop Monitoring"):
         st.session_state.monitoring = False
