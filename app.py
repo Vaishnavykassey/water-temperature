@@ -1,74 +1,154 @@
 import streamlit as st
-import pandas as pd
 import os
+from PIL import Image
+import time
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+import pandas as pd
+import random
+import io
+import base64
 
-st.set_page_config(page_title="💧 Smart Water Temperature Monitoring", layout="centered")
-st.title("💧 Smart Water Temperature Monitoring System")
+# Email Configuration
+EMAIL_ADDRESS = "your_email@gmail.com"           # 🔁 Replace with your email
+EMAIL_PASSWORD = "your_app_password_here"        # 🔁 Replace with your app password (not your regular password)
+ALERT_RECIPIENT = "recipient_email@example.com"  # 🔁 Replace with recipient email
 
-file_path = "data_temperature_log.csv"
+def send_alert_email(temp):
+    subject = "Water Temperature Alert"
+    body = f"Warning! Water temperature has reached {temp} °C."
 
-if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-    try:
-        df = pd.read_csv(file_path)
-        if df.empty or "Temperature" not in df.columns:
-            st.warning("CSV file is present but has no usable data.")
-        else:
-            st.line_chart(df["Temperature"])
-            st.success("Data loaded and chart displayed!")
-    except Exception as e:
-        st.error(f"Error reading CSV: {e}")
-else:
-    st.warning("CSV file not found or is empty. Please upload or generate valid data.")
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_ADDRESS
+    msg['To'] = ALERT_RECIPIENT
+    msg['Subject'] = subject
 
-# Monitoring logic
+    msg.attach(MIMEText(body, 'plain'))
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        smtp.send_message(msg)
+
+# Load alert sound (simple beep) from base64-encoded WAV
+ALERT_SOUND_BASE64 = """
+UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=
+"""  # very short beep sound
+
+def play_alert_sound():
+    sound_bytes = base64.b64decode(ALERT_SOUND_BASE64)
+    st.audio(sound_bytes, format='audio/wav')
+
+# Session state
+if "monitoring" not in st.session_state:
+    st.session_state.monitoring = False
+if "data" not in st.session_state:
+    st.session_state.data = []
+if "alert_sent" not in st.session_state:
+    st.session_state.alert_sent = False
+
+# Page Setup
+st.set_page_config(page_title="Smart Water Temp Monitor", layout="wide")
+st.title("🌊 Smart Water Temperature Monitoring System")
+
+# Logo from URL
+st.image(
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Google-flutter-logo.png/768px-Google-flutter-logo.png",
+    width=100
+)
+
+# Sidebar Settings
+st.sidebar.header("⚙️ Alert Settings")
+high_threshold = st.sidebar.slider("High Temp Alert (°C)", 30, 100, 60)
+low_threshold = st.sidebar.slider("Low Temp Alert (°C)", 0, 29, 15)
+
+# Start / Stop Monitoring
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("▶️ Start Monitoring"):
+        st.session_state.monitoring = True
+        st.session_state.alert_sent = False
+        st.success("Monitoring started!")
+with col2:
+    if st.button("⏹ Stop Monitoring"):
+        st.session_state.monitoring = False
+        st.success("Monitoring stopped!")
+
+# Placeholders
+data_placeholder = st.empty()
+status_placeholder = st.empty()
+chart_placeholder = st.empty()
+
+# Simulate temperature sensor
+def simulate_sensor_data():
+    return round(random.uniform(10.0, 70.0), 2)
+
+# Monitoring Logic
 if st.session_state.monitoring:
-    temperature = get_water_temperature()
-    timestamp = pd.Timestamp.now()
-
-    # Append current reading
-    st.session_state.data.append({"Timestamp": timestamp, "Temperature": temperature})
-
-    # Show current temperature
-    st.metric("🌡️ Current Water Temperature", f"{temperature} °C")
+    temp = simulate_sensor_data()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.session_state.data.append({"Timestamp": now, "Temperature (°C)": temp})
 
     # Alerts
-    if temperature > 30:
-        st.error("🔥 Alert: Temperature too high!")
-    elif temperature < 24:
-        st.warning("❄️ Warning: Temperature too low")
+    if temp > high_threshold:
+        status_placeholder.error(f"🔥 High Temp Alert: {temp} °C")
+        if not st.session_state.alert_sent:
+            send_alert_email(temp)
+            play_alert_sound()
+            st.session_state.alert_sent = True
+    elif temp < low_threshold:
+        status_placeholder.warning(f"❄️ Low Temp Alert: {temp} °C")
+        st.session_state.alert_sent = False
     else:
-        st.success("✅ Temperature is normal")
+        status_placeholder.success(f"✅ Temperature Normal: {temp} °C")
+        st.session_state.alert_sent = False
 
-    # Show temperature history chart
+    # Display Data Table
     df = pd.DataFrame(st.session_state.data)
-    df.set_index("Timestamp", inplace=True)
-    st.line_chart(df["Temperature"])
+    data_placeholder.dataframe(df.tail(10), use_container_width=True)
 
-    # Small delay so UI doesn't freeze
-    time.sleep(2)
+    # Line Chart
+    chart_placeholder.line_chart(df.set_index("Timestamp")["Temperature (°C)"])
 
-    # Rerun the app to update live
-    st.experimental_rerun()
+    # Refresh every 5 seconds
+    time.sleep(5)
+    st.rerun()  # ✅ Updated from deprecated st.experimental_rerun()
 
 else:
-    st.info("Press ▶️ Start Monitoring to begin reading water temperature.")
-
-    # If we have any data, show last readings and allow export
     if st.session_state.data:
+        st.subheader("📊 Temperature Log")
         df = pd.DataFrame(st.session_state.data)
-        df.set_index("Timestamp", inplace=True)
+        st.dataframe(df, use_container_width=True)
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("⬇️ Download CSV Log", data=csv, file_name="temperature_log.csv", mime="text/csv")
+    else:
+        st.info("ℹ️ No data yet. Click Start Monitoring.")
 
-        st.subheader("📈 Temperature History")
-        st.line_chart(df["Temperature"])
+# Display Live Water Images
+st.subheader("📸 Live Water Images")
 
-        # Show data table
-        st.dataframe(df)
+image_folder = "live_images"  # Make sure this folder exists and has images
 
-        # Export CSV
-        csv = df.to_csv().encode('utf-8')
-        st.download_button(
-            label="⬇️ Download Temperature Log as CSV",
-            data=csv,
-            file_name='temperature_log.csv',
-            mime='text/csv'
-        )
+if os.path.exists(image_folder):
+    valid_extensions = ('.jpg', '.jpeg', '.png', '.gif')
+    image_files = sorted([f for f in os.listdir(image_folder) if f.lower().endswith(valid_extensions)])
+else:
+    image_files = []
+
+st.write("🗂️ Files in 'live_images' folder:", image_files)  # For debugging
+
+if image_files:
+    for img_file in image_files:
+        try:
+            img_path = os.path.join(image_folder, img_file)
+            image = Image.open(img_path)
+            st.image(image, caption=img_file, use_container_width=True)
+        except Exception as e:
+            st.warning(f"⚠️ Could not load {img_file}: {e}")
+else:
+    st.info("📁 No live images found. Please add images to the 'live_images/' folder.")
+
+# Footer
+st.markdown("---")
+st.caption("🚀 Built with ❤️ by Vaishnavy Kassey | Smart Water Temp Monitor")
